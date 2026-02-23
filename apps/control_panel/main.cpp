@@ -28,6 +28,7 @@
 #include <ShlObj.h>
 
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <memory>
 #include <sstream>
@@ -266,6 +267,47 @@ std::vector<std::string> read_log_lines_limited(const std::string& path, size_t 
 
 bool contains_token(const std::string& text, const char* token) {
     return text.find(token) != std::string::npos;
+}
+
+bool is_digit_char(char c) {
+    return std::isdigit(static_cast<unsigned char>(c)) != 0;
+}
+
+bool is_log_header_line(const std::string& line) {
+    // Expected logger header format:
+    // YYYY-MM-DD HH:MM:SS [LEVEL] message
+    if (line.size() < 23) {
+        return false;
+    }
+
+    const bool date_ok =
+        is_digit_char(line[0]) &&
+        is_digit_char(line[1]) &&
+        is_digit_char(line[2]) &&
+        is_digit_char(line[3]) &&
+        line[4] == '-' &&
+        is_digit_char(line[5]) &&
+        is_digit_char(line[6]) &&
+        line[7] == '-' &&
+        is_digit_char(line[8]) &&
+        is_digit_char(line[9]);
+
+    const bool time_ok =
+        line[10] == ' ' &&
+        is_digit_char(line[11]) &&
+        is_digit_char(line[12]) &&
+        line[13] == ':' &&
+        is_digit_char(line[14]) &&
+        is_digit_char(line[15]) &&
+        line[16] == ':' &&
+        is_digit_char(line[17]) &&
+        is_digit_char(line[18]);
+
+    if (!date_ok || !time_ok) {
+        return false;
+    }
+
+    return line.find(" [", 19) != std::string::npos;
 }
 
 bool start_agent() {
@@ -581,20 +623,34 @@ void refresh_status_ui() {
         }
     }
 
+    const std::vector<std::string> latest_scope(
+        lines.begin() + static_cast<std::ptrdiff_t>(latest_session_index),
+        lines.end());
+
     std::vector<std::string> filtered;
     if (g_log_filter_mode == LogFilterMode::FullHistory) {
         filtered = lines;
+    } else if (g_log_filter_mode == LogFilterMode::LatestSession) {
+        filtered = latest_scope;
     } else {
-        filtered.assign(lines.begin() + static_cast<std::ptrdiff_t>(latest_session_index), lines.end());
-        if (g_log_filter_mode == LogFilterMode::ErrorsOnly) {
-            std::vector<std::string> only_errors;
-            for (const auto& l : filtered) {
-                if (contains_token(l, "[ERROR]")) {
-                    only_errors.push_back(l);
+        // Error filter works on full history and keeps multiline error context:
+        // if an [ERROR] header is followed by wrapped lines, we keep them too.
+        std::vector<std::string> only_errors;
+        bool in_error_block = false;
+        for (const auto& line : lines) {
+            if (is_log_header_line(line)) {
+                in_error_block = contains_token(line, "[ERROR]");
+                if (in_error_block) {
+                    only_errors.push_back(line);
                 }
+                continue;
             }
-            filtered.swap(only_errors);
+
+            if (in_error_block) {
+                only_errors.push_back(line);
+            }
         }
+        filtered.swap(only_errors);
     }
 
     std::ostringstream logs;
