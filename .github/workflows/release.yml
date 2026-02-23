@@ -1,3 +1,12 @@
+# Tag-triggered release workflow.
+#
+# This pipeline creates release artifacts from a tagged revision to keep deliverables traceable.
+# It compiles binaries, produces installer output, and publishes artifacts to GitHub Releases.
+#
+# Operational goal:
+# - Ensure published installers are built from immutable tags.
+# - Keep distribution predictable for end users.
+#
 name: release
 
 on:

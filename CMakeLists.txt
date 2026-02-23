@@ -1,3 +1,13 @@
+# Build configuration for ODTKRA industrial refactor.
+#
+# This file intentionally keeps target wiring explicit so maintainers can quickly reason about
+# dependency boundaries between core runtime logic, entrypoint applications, and tests.
+#
+# Key intent:
+# - Build shared core logic once (odtkra_core).
+# - Link thin entrypoints (odtkra_agent, odtkra_control_panel) against that core.
+# - Keep test target lightweight and always available in CI.
+#
 cmake_minimum_required(VERSION 3.22)
 project(ODTKRAIndustrial LANGUAGES CXX)
 

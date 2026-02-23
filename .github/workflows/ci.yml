@@ -1,3 +1,12 @@
+# Continuous integration workflow.
+#
+# This pipeline verifies that the repository is always buildable and testable on a clean Windows runner.
+# It also prepares binary artifacts that can be downloaded for manual validation.
+#
+# Operational goal:
+# - Fail fast when compilation or tests regress.
+# - Keep release path reproducible by using the same build sequence as local documentation.
+#
 name: ci
 
 on:

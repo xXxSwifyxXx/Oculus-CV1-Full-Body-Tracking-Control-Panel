@@ -1,3 +1,19 @@
+/*
+ * File: src/core/config.cpp
+ *
+ * Purpose:
+ *   Implements JSON-like config parsing/persistence and command-line override handling with compatibility fallbacks.
+ *
+ * Design Notes:
+ *   - This file is part of the production-grade refactor where responsibilities are intentionally split.
+ *   - The intent is to keep logic predictable, observable, and recoverable under partial-runtime scenarios.
+ *   - Error paths are expected in real user environments (missing Oculus runtime, missing SteamVR, permissions).
+ *
+ * Maintenance Guidance:
+ *   - Keep behavior deterministic and avoid hidden side effects.
+ *   - Prefer explicit logging and explicit return values over implicit assumptions.
+ *   - If a change alters runtime behavior, update tests and diagnostics messaging in the same change.
+ */
 #include "core/config.h"
 
 #include "core/oculus_discovery.h"
@@ -11,6 +27,8 @@
 
 namespace {
 
+// Whitespace trimming helper used by CLI and config parsing. Keeping this
+// local avoids exporting utility behavior that is only meaningful in this file.
 std::string trim(const std::string& value) {
     auto is_space = [](unsigned char c) { return std::isspace(c) != 0; };
     auto begin = std::find_if_not(value.begin(), value.end(), is_space);
@@ -21,6 +39,8 @@ std::string trim(const std::string& value) {
     return std::string(begin, end);
 }
 
+// Minimal string extraction for flat JSON fields.
+// This parser is intentionally simple because config schema is tiny and stable.
 std::string extract_json_string(const std::string& text, const std::string& key, const std::string& fallback) {
     const std::string pattern = "\"" + key + "\"";
     const auto key_pos = text.find(pattern);
@@ -42,6 +62,7 @@ std::string extract_json_string(const std::string& text, const std::string& key,
     return text.substr(open_quote + 1, close_quote - open_quote - 1);
 }
 
+// Parses integer fields with defensive fallback behavior.
 int extract_json_int(const std::string& text, const std::string& key, int fallback) {
     const std::string pattern = "\"" + key + "\"";
     const auto key_pos = text.find(pattern);
@@ -68,6 +89,7 @@ int extract_json_int(const std::string& text, const std::string& key, int fallba
     return std::stoi(number);
 }
 
+// Parses boolean fields while preserving defaults on malformed content.
 bool extract_json_bool(const std::string& text, const std::string& key, bool fallback) {
     const std::string pattern = "\"" + key + "\"";
     const auto key_pos = text.find(pattern);
@@ -104,6 +126,7 @@ const std::string& ConfigStore::path() const {
 }
 
 AppConfig ConfigStore::load() const {
+    // Missing config file is not an error: defaults represent first-run state.
     std::ifstream input(path_, std::ios::in | std::ios::binary);
     if (!input.is_open()) {
         return {};
@@ -113,6 +136,8 @@ AppConfig ConfigStore::load() const {
     buffer << input.rdbuf();
     const std::string text = buffer.str();
 
+    // Parse known keys. Unknown keys are ignored by design to tolerate forward
+    // additions and keep older binaries resilient.
     AppConfig cfg;
     cfg.oculusDiagnosticsPath = extract_json_string(text, "oculusDiagnosticsPath", cfg.oculusDiagnosticsPath);
     cfg.oculusClientPath = extract_json_string(text, "oculusClientPath", cfg.oculusClientPath);
@@ -122,11 +147,15 @@ AppConfig ConfigStore::load() const {
     cfg.refreshMinutes = extract_json_int(text, "refreshMinutes", cfg.refreshMinutes);
     cfg.enableCliTuning = extract_json_bool(text, "enableCliTuning", cfg.enableCliTuning);
     cfg.dryRun = extract_json_bool(text, "dryRun", cfg.dryRun);
+    // Compatibility path migration: if the historical Oculus path is configured
+    // but missing, transparently switch to the Meta Horizon default.
     const std::string legacy_path = "C:\\Program Files\\Oculus\\Support\\oculus-diagnostics";
     const std::string meta_path = "C:\\Program Files\\Meta Horizon\\Support\\oculus-diagnostics";
     if (cfg.oculusDiagnosticsPath == legacy_path && !path_exists(cfg.oculusDiagnosticsPath) && path_exists(meta_path)) {
         cfg.oculusDiagnosticsPath = meta_path;
     }
+    // If critical paths are invalid, try auto-discovery so users do not have
+    // to manually edit config for common install layouts.
     if (!path_exists(cfg.oculusDiagnosticsPath) || !path_exists(join_path(cfg.oculusDiagnosticsPath, "OculusDebugToolCLI.exe")) || !path_exists(cfg.oculusClientPath)) {
         const auto detected = detect_oculus_paths();
         if (!detected.diagnosticsDir.empty()) {
@@ -136,6 +165,7 @@ AppConfig ConfigStore::load() const {
             cfg.oculusClientPath = detected.oculusClientExe;
         }
     }
+    // Normalize old placeholder URLs to the expected Space Calibrator endpoint.
     if (cfg.ovrpsTrackingUrl == "https://store.steampowered.com/") {
         cfg.ovrpsTrackingUrl = "https://store.steampowered.com/app/3368750/Space_Calibrator/";
     }
@@ -144,6 +174,7 @@ AppConfig ConfigStore::load() const {
 }
 
 bool ConfigStore::save(const AppConfig& config) const {
+    // Ensure directory exists before opening stream for truncation.
     const auto slash = path_.find_last_of("\\/");
     if (slash != std::string::npos) {
         ensure_directory(path_.substr(0, slash));
@@ -154,6 +185,8 @@ bool ConfigStore::save(const AppConfig& config) const {
         return false;
     }
 
+    // Write a deterministic and human-readable config file so support/debug
+    // sessions can inspect and edit values without tooling.
     output << "{\n";
     output << "  \"oculusDiagnosticsPath\": \"" << config.oculusDiagnosticsPath << "\",\n";
     output << "  \"oculusClientPath\": \"" << config.oculusClientPath << "\",\n";
@@ -171,6 +204,8 @@ bool ConfigStore::save(const AppConfig& config) const {
 AppConfig apply_cli_args(int argc, char* argv[], const AppConfig& base) {
     AppConfig cfg = base;
 
+    // CLI overrides intentionally apply in-order. Last value wins, which allows
+    // wrappers/scripts to append overrides without editing earlier arguments.
     for (int i = 1; i < argc; ++i) {
         const std::string arg = trim(argv[i]);
         if (arg == "--path" && i + 1 < argc) {

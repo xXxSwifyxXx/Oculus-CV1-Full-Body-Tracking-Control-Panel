@@ -1,3 +1,19 @@
+/*
+ * File: apps/control_panel/main.cpp
+ *
+ * Purpose:
+ *   Main Win32 control panel UI that displays status, paths, logs, and operational actions for runtime control and diagnostics.
+ *
+ * Design Notes:
+ *   - This file is part of the production-grade refactor where responsibilities are intentionally split.
+ *   - The intent is to keep logic predictable, observable, and recoverable under partial-runtime scenarios.
+ *   - Error paths are expected in real user environments (missing Oculus runtime, missing SteamVR, permissions).
+ *
+ * Maintenance Guidance:
+ *   - Keep behavior deterministic and avoid hidden side effects.
+ *   - Prefer explicit logging and explicit return values over implicit assumptions.
+ *   - If a change alters runtime behavior, update tests and diagnostics messaging in the same change.
+ */
 #include "core/config.h"
 #include "core/diagnostics.h"
 #include "core/logger.h"
@@ -21,6 +37,7 @@
 
 namespace {
 
+// Centralized control IDs used by WM_COMMAND routing.
 enum ControlId {
     IdStatusPrimary = 101,
     IdStatusSecondary = 102,
@@ -61,6 +78,8 @@ struct AppState {
 
 std::unique_ptr<AppState> g_state;
 
+// Global HWND handles are intentionally grouped by role to make layout and
+// style updates explicit and easy to reason about in a single-file Win32 app.
 HWND g_title = nullptr;
 HWND g_status_primary = nullptr;
 HWND g_status_secondary = nullptr;
@@ -101,6 +120,8 @@ std::string g_last_logs_text;
 int g_current_dpi = 96;
 LogFilterMode g_log_filter_mode = LogFilterMode::LatestSession;
 
+// DPI scaling helper. Every pixel value used for layout should pass through
+// this function to keep spacing consistent across DPI settings.
 int s(int px) {
     return MulDiv(px, g_current_dpi, 96);
 }
@@ -116,6 +137,7 @@ COLORREF color_card_border() { return rgb(202, 214, 232); }
 COLORREF color_status_accent() { return rgb(76, 144, 224); }
 
 void recreate_brushes() {
+    // Recreate brushes whenever theme colors or DPI-dependent styles change.
     if (g_brush_bg) DeleteObject(g_brush_bg);
     if (g_brush_card) DeleteObject(g_brush_card);
     if (g_brush_edit) DeleteObject(g_brush_edit);
@@ -139,6 +161,7 @@ void apply_font(HWND control, HFONT font) {
 }
 
 void update_fonts() {
+    // Fonts are recreated on startup and WM_DPICHANGED to preserve readability.
     if (g_font_title) DeleteObject(g_font_title);
     if (g_font_body) DeleteObject(g_font_body);
     if (g_font_mono) DeleteObject(g_font_mono);
@@ -149,6 +172,8 @@ void update_fonts() {
 }
 
 void apply_fonts_to_controls() {
+    // Keep font assignment explicit so future control additions do not silently
+    // inherit inconsistent typography.
     apply_font(g_title, g_font_title);
     apply_font(g_status_primary, g_font_body);
     apply_font(g_status_secondary, g_font_body);
@@ -202,6 +227,8 @@ std::string browse_for_folder(HWND owner, const std::string& title) {
 }
 
 void set_edit_text_preserve_scroll(HWND edit, const std::string& text, bool follow_if_bottom) {
+    // This helper avoids the common Win32 UX issue where periodic log refreshes
+    // force the viewer to jump and lose operator context.
     if (!edit) return;
 
     const int first_before = static_cast<int>(SendMessage(edit, EM_GETFIRSTVISIBLELINE, 0, 0));
@@ -242,6 +269,8 @@ bool contains_token(const std::string& text, const char* token) {
 }
 
 bool start_agent() {
+    // Launches the agent detached/no-window so the control panel remains the
+    // only visible UI while runtime logic executes headlessly.
     if (!odtkra::path_exists(agent_exe())) {
         MessageBoxA(nullptr, "odtkra_agent.exe introuvable dans le dossier de l'application.", "ODTKRA", MB_ICONERROR);
         return false;
@@ -299,6 +328,8 @@ std::string credits_text() {
 }
 
 std::string build_verbose_debug_bundle(const std::string& title, const std::string& core_message) {
+    // This diagnostic payload is intentionally verbose because installation
+    // issues are frequently environment-specific and difficult to reproduce.
     std::ostringstream out;
     out << title << "\n\n";
     out << "Core result: " << core_message << "\n";
@@ -321,6 +352,8 @@ std::string build_verbose_debug_bundle(const std::string& title, const std::stri
 }
 
 void run_first_launch_wizard(HWND hwnd) {
+    // First-launch guidance is persisted via marker file to avoid nagging users
+    // after initial onboarding.
     if (odtkra::path_exists(g_state->first_run_marker_path)) return;
 
     const int run_now = MessageBoxA(
@@ -341,6 +374,8 @@ void run_first_launch_wizard(HWND hwnd) {
 }
 
 void layout_controls(HWND hwnd, int width, int height) {
+    // One centralized layout function keeps resize behavior deterministic and
+    // avoids fragmented geometry logic across message handlers.
     const int margin = s(16);
     const int gap = s(10);
     const int card_pad = s(12);
@@ -415,6 +450,8 @@ void fill_round_rect(HDC dc, const RECT& r, int radius, COLORREF fill, COLORREF 
 }
 
 void paint_window(HWND hwnd, HDC hdc) {
+    // Parent paint draws card backgrounds and accents only. Child controls draw
+    // their own content to avoid overdraw artifacts.
     RECT rc{};
     GetClientRect(hwnd, &rc);
     FillRect(hdc, &rc, g_brush_bg);
@@ -490,6 +527,8 @@ void draw_button(const DRAWITEMSTRUCT* dis) {
 }
 
 void refresh_status_ui() {
+    // Refresh cycle pulls from process state + state.json + log file, then
+    // updates only changed text blocks to reduce flicker and scroll jumps.
     g_state->steam = odtkra::detect_steamvr();
 
     const int pid = odtkra::find_process_id(L"odtkra_agent.exe");
@@ -572,6 +611,8 @@ void refresh_status_ui() {
 LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
     switch (msg) {
         case WM_CREATE: {
+            // Explicit style enforcement ensures the window remains resizable
+            // even if defaults differ across toolchains or manifests.
             const LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
             SetWindowLongPtr(hwnd, GWL_STYLE, style | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_SIZEBOX);
             SetWindowPos(hwnd, nullptr, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED);
@@ -646,6 +687,8 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
             return 0;
         }
         case WM_TIMER:
+            // Periodic refresh keeps status and logs live without requiring user
+            // interaction.
             refresh_status_ui();
             return 0;
         case WM_GETMINMAXINFO: {
@@ -716,6 +759,8 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
             return 0;
         }
         case WM_COMMAND: {
+            // WM_COMMAND is intentionally kept as a flat dispatch table so each
+            // operation is easy to follow and audit.
             const int id = LOWORD(w_param);
             const int code = HIWORD(w_param);
             if (id == IdLogFilter && code == CBN_SELCHANGE) {
@@ -794,6 +839,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
 } // namespace
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int show) {
+    // Process-level DPI awareness must be set before creating controls.
     auto set_dpi_ctx = reinterpret_cast<BOOL(WINAPI*)(DPI_AWARENESS_CONTEXT)>(
         GetProcAddress(GetModuleHandleA("user32.dll"), "SetProcessDpiAwarenessContext"));
     if (set_dpi_ctx) {

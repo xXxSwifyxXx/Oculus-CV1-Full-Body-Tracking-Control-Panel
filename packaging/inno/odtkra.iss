@@ -1,3 +1,12 @@
+; Inno Setup script for packaging and first-run automation.
+;
+; This installer script is intentionally explicit so operational behavior is obvious:
+; - install binaries to Program Files
+; - create shortcuts
+; - run optional post-install TouchLink installation step
+;
+; When updating this file, keep relative source paths synchronized with CMake output layout.
+;
 #define AppName "Oculus CV1 Full Body Tracking Control Panel"
 #define AppVersion "2.1.0"
 #define AppPublisher "ODTKRA"
