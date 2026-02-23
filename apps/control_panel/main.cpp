@@ -108,6 +108,7 @@ HFONT g_font_mono = nullptr;
 
 HBRUSH g_brush_bg = nullptr;
 HBRUSH g_brush_card = nullptr;
+HBRUSH g_brush_status = nullptr;
 HBRUSH g_brush_edit = nullptr;
 
 RECT g_card_status{};
@@ -141,10 +142,12 @@ void recreate_brushes() {
     // Recreate brushes whenever theme colors or DPI-dependent styles change.
     if (g_brush_bg) DeleteObject(g_brush_bg);
     if (g_brush_card) DeleteObject(g_brush_card);
+    if (g_brush_status) DeleteObject(g_brush_status);
     if (g_brush_edit) DeleteObject(g_brush_edit);
 
     g_brush_bg = CreateSolidBrush(color_bg());
     g_brush_card = CreateSolidBrush(color_card_neutral());
+    g_brush_status = CreateSolidBrush(color_card_status());
     g_brush_edit = CreateSolidBrush(rgb(255, 255, 255));
 }
 
@@ -796,7 +799,10 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
             } else {
                 SetTextColor(dc, rgb(36, 50, 68));
             }
-            if (target == g_status_primary || target == g_status_secondary || target == g_paths_title || target == g_logs_title) {
+            if (target == g_status_primary || target == g_status_secondary) {
+                return reinterpret_cast<LRESULT>(g_brush_status);
+            }
+            if (target == g_paths_title || target == g_logs_title) {
                 return reinterpret_cast<LRESULT>(g_brush_card);
             }
             return reinterpret_cast<LRESULT>(g_brush_bg);
@@ -883,6 +889,7 @@ LRESULT CALLBACK wnd_proc(HWND hwnd, UINT msg, WPARAM w_param, LPARAM l_param) {
             if (g_font_mono) DeleteObject(g_font_mono);
             if (g_brush_bg) DeleteObject(g_brush_bg);
             if (g_brush_card) DeleteObject(g_brush_card);
+            if (g_brush_status) DeleteObject(g_brush_status);
             if (g_brush_edit) DeleteObject(g_brush_edit);
             PostQuitMessage(0);
             return 0;
