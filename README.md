@@ -7,7 +7,18 @@ ODTKRA keeps Oculus Rift CV1 awake with a production-oriented architecture:
 - SteamVR driver installer for `OculusTouchLink`
 - CI + installer automation
 
+Repository docs:
+- `docs/REPO_STRUCTURE.md`
+- `docs/PROJECT_TRANSFER_HISTORY.md`
+
 ## 1) Proposed Clean Architecture
+
+Repository layout:
+- `src/`: production code
+- `tests/`: automated tests
+- `packaging/`: installer scripts
+- `docs/`: transfer history and documentation assets
+- `legacy/`: archived pre-refactor project files
 
 Modules:
 - `src/core`
@@ -48,7 +59,7 @@ Runtime flow:
 
 ## 2) Migration Plan (incremental)
 
-1. Freeze legacy entrypoint in `ODTKRA/Main.cpp` (reference only).
+1. Freeze legacy entrypoint in `legacy/ODTKRA/Main.cpp` (reference only).
 2. Introduce modular `src/core` services.
 3. Move runtime into `odtkra_agent.exe` with same baseline behavior.
 4. Add dry-run diagnostics and state reporting.
@@ -141,7 +152,7 @@ odtkra_agent.exe --steamvr-drivers "C:\Program Files (x86)\Steam\steamapps\commo
 ## Legacy Note
 
 Previous monolithic implementation remains in:
-- `ODTKRA/Main.cpp`
+- `legacy/ODTKRA/Main.cpp`
 
 New production code is under `src/`.
 

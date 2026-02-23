@@ -41,7 +41,7 @@ Ainsi, quand tu publies, les gens comprennent pourquoi le code arrive déjà tr�
 ### Code legacy
 Le projet initial reposait principalement sur:
 
-- `ODTKRA/Main.cpp` (monolithe)
+- `legacy/ODTKRA/Main.cpp` (monolithe)
 
 ### Comportement initial
 - logique anti-sleep centrée sur Oculus Debug Tool
