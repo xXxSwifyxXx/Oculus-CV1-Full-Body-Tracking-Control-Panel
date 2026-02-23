@@ -20,10 +20,10 @@ add_library(odtkra_core
 target_include_directories(odtkra_core PUBLIC src)
 target_link_libraries(odtkra_core PUBLIC user32 shell32 advapi32 urlmon)
 
-add_executable(odtkra_agent src/agent/main.cpp)
+add_executable(odtkra_agent apps/agent/main.cpp)
 target_link_libraries(odtkra_agent PRIVATE odtkra_core)
 
-add_executable(odtkra_control_panel WIN32 src/control_panel/main.cpp)
+add_executable(odtkra_control_panel WIN32 apps/control_panel/main.cpp)
 target_link_libraries(odtkra_control_panel PRIVATE odtkra_core)
 
 enable_testing()

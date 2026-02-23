@@ -3,6 +3,14 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Local editor settings
+.vscode/
+
+# Local artifacts
+build/
+dist/
+packaging/output/
+
 # User-specific files
 *.rsuser
 *.suo

@@ -13,7 +13,7 @@ DefaultDirName={autopf}\ODTKRA
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 OutputBaseFilename=ODTKRA-Setup
-OutputDir=output
+OutputDir=..\output
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -27,8 +27,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional icons:";
 
 [Files]
-Source: "..\build\Release\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\build\Release\{#AgentExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\build\Release\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\build\Release\{#AgentExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"

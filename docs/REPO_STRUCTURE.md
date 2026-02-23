@@ -2,10 +2,11 @@
 
 ## Active project code
 - `src/core`: shared runtime services (config, diagnostics, install, discovery, logging)
-- `src/agent`: headless executable entrypoint
-- `src/control_panel`: Win32 control panel entrypoint
+- `apps/agent`: headless executable entrypoint
+- `apps/control_panel`: Win32 control panel entrypoint
 - `tests`: unit/smoke test binaries
-- `packaging`: installer scripts and output folder
+- `packaging/inno`: installer script
+- `packaging/output`: generated setup artifacts
 - `.github/workflows`: CI/release pipelines
 
 ## Documentation and assets

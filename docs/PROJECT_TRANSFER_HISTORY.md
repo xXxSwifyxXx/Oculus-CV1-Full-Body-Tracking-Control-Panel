@@ -10,7 +10,7 @@
 ## TL;DR
 Ce projet est passé d’un exécutable legacy monolithique (ODTKRA) à une base quasi-produit avec:
 
-- architecture modulaire (`src/core`, `src/agent`, `src/control_panel`, `tests`)
+- architecture modulaire (`src/core`, `apps/agent`, `apps/control_panel`, `tests`)
 - diagnostics dry-run
 - installation/MAJ TouchLink robuste
 - installateur Windows (`Inno Setup`)
@@ -83,13 +83,13 @@ Nouvelle structure principale:
   - anti_sleep_service
   - steam/oculus discovery
   - touchlink installer
-- `src/agent/main.cpp`
+- `apps/agent/main.cpp`
   - exécution headless (`odtkra_agent.exe`)
-- `src/control_panel/main.cpp`
+- `apps/control_panel/main.cpp`
   - UI Windows
 - `tests/`
   - tests unitaires/smoke
-- `packaging/odtkra.iss`
+- `packaging/inno/odtkra.iss`
   - installateur setup .exe
 - `.github/workflows/`
   - CI + release automation

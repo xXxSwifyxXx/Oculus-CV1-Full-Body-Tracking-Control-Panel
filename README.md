@@ -14,9 +14,10 @@ Repository docs:
 ## 1) Proposed Clean Architecture
 
 Repository layout:
+- `apps/`: executable entrypoints (agent + control panel)
 - `src/`: production code
 - `tests/`: automated tests
-- `packaging/`: installer scripts
+- `packaging/`: installer scripts and output
 - `docs/`: transfer history and documentation assets
 - `legacy/`: archived pre-refactor project files
 
@@ -29,10 +30,10 @@ Modules:
   - `diagnostics.*`: technical checklist + verdict (dry-run aware)
   - `anti_sleep_service.*`: anti-sleep loop + state file (`state.json`)
   - `touchlink_installer.*`: download + copy `OculusTouchLink` to SteamVR
-- `src/agent/main.cpp`
+- `apps/agent/main.cpp`
   - headless runtime (`odtkra_agent.exe`)
   - supports `--dry-run`, `--diagnostics`, `--install-touchlink`, `--once`
-- `src/control_panel/main.cpp`
+- `apps/control_panel/main.cpp`
   - Win32 Control Panel:
     - ODTKRA running/stopped status
     - Start/Stop/Restart
@@ -46,7 +47,7 @@ Modules:
     - Steam auto-detection details (Steam root, Steam library, SteamVR drivers)
 - `tests`
   - unit tests for config/diagnostics and CLI argument behavior
-- `packaging/odtkra.iss`
+- `packaging/inno/odtkra.iss`
   - setup exe installer (Program Files, desktop/start menu shortcuts, uninstall)
   - post-install OculusTouchLink install
   - runtime verification moved to first launch inside Control Panel
@@ -80,7 +81,7 @@ Key risks + mitigations:
 - UI: Win32 API (small footprint, redistributable simplicity)
 - Build: CMake + VS 2022 generator in CI
 - Tests: lightweight built-in harness (no external test framework dependency)
-- Installer: Inno Setup (`packaging/odtkra.iss`)
+- Installer: Inno Setup (`packaging/inno/odtkra.iss`)
 - CI/CD: GitHub Actions (`.github/workflows/ci.yml`, `release.yml`)
 
 Why this stack:
@@ -90,7 +91,7 @@ Why this stack:
 
 ## 4) Implemented Features
 
-- Refactored modular codebase under `src/`.
+- Refactored modular codebase under `src/` + `apps/`.
 - Dry-run diagnostics with checklist + corrective actions.
 - New Control Panel app named:
   - `Oculus CV1 Full Body Tracking Control Panel`
@@ -128,7 +129,7 @@ ctest --test-dir build -C Release --output-on-failure
 
 Installer:
 ```powershell
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "packaging\odtkra.iss"
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "packaging\inno\odtkra.iss"
 ```
 Output:
 - `packaging\output\ODTKRA-Setup.exe`
@@ -154,7 +155,7 @@ odtkra_agent.exe --steamvr-drivers "C:\Program Files (x86)\Steam\steamapps\commo
 Previous monolithic implementation remains in:
 - `legacy/ODTKRA/Main.cpp`
 
-New production code is under `src/`.
+New production code is under `src/` and `apps/`.
 
 ## Credits
 
